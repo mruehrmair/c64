@@ -5,6 +5,7 @@
 ;*** Variablen
 SCREEN  = $0428         ;Start position of the screen
 CHAR    = $18        ;X char
+SIDRND  = $D41B ; address where SID generates the random number
 
 ;LOOPCOUNTER = $6fff     ; loop counter register
  
@@ -24,14 +25,25 @@ CHAR    = $18        ;X char
 ;         STA LOOPCOUNTER 
          
 ;start of screen population    => 28685     
-         LDA #CHAR ; load char
          
 loop             
-         LDY $D41B ; Load rnd into y 
+;load random number into y, load screen start address into x, add y, transfer x to a
+;repeat this three times                   
+         LDA $D41B
+         ADC $D41B         
+         STA $6FFF
+         LDX $D41B
+         STA $6FFF,x
+         
+         LDX SCREEN,y ; load value from randomly determined address into x
+         LDY SIDRND,x ; Load rnd into y          
+         LDX SCREEN,y ; load value from randomly determined address into x
+         LDY SIDRND,x ; Load rnd into y          
          LDX SCREEN,y ; load value from randomly determined address into x
          CPX #CHAR ;compare x with CHAR
          BEQ loop; if equal try again
-         STA SCREEN,y ; Print to screen if not equal
+         LDA #CHAR ; load char into a
+         STA SCREEN,x ; Print char to screen if not equal
 
 ;         LDX LOOPCOUNTER ; loop counter
 ;loop2     
