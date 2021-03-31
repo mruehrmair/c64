@@ -25,6 +25,11 @@ SIDRND  = $D41B ; address where SID generates the random number
 ;         STA LOOPCOUNTER 
          
 ;start of screen population    => 28685     
+
+clearScreen
+         LDA #$93
+         JSR CHROUT
+         RTS
          
 loop             
 ;load random number into y, load screen start address into x, add y, transfer x to a
