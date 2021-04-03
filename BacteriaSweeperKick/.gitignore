@@ -1,0 +1,6 @@
+# PRG files
+.source.txt
+*.prg
+*.dbg
+*.sym
+*.vs
