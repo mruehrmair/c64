@@ -11,6 +11,7 @@
   BGCOLOR = $D021 ;
   BORDERCOLOR = $D020 ;
   CHRCOLOR = $0286 ;
+  HSSCREEN = $0408 ;
 
   ;joystick addresses 
   CIAPRA = $DC00     ;joystick port 2
@@ -21,21 +22,21 @@
   JOYSMB = %00010000​;joystick mask button
   
   ;data addresses
-  ;$0801  
-  ;  !byte 17
-  
-    
+  TITLEMESSAGE = $2000
+  HIGHSCORELB = $208B
+  HIGHSCOREHB = $208C
+  SCORELB = $208D
+  SCOREHB = $208E
   ;startup address
     * = $0801
   ;create BASIC startup (SYS line)
     !basic
     
-    
+   * = $080D
     JSR init
     JSR titleScreen
     ;JSR gameloop
     RTS
-  
   
   init:
     JSR initRandomSID
@@ -70,25 +71,37 @@
     LDY #0
     STY JOYSTICKINPUT ;Store input in zero page
     RTS
- 
-  printMessages
-    LDA #$11
-    JSR CHROUT  
-    LDA #$42
-    JSR CHROUT
-    RTS 
-  ;  LDX #$04        ; initialize x to message length
-  ;    GETCHAR
-  ;      LDA TITLEMESSAGE,X     ; grab byte
-  ;      JSR $FFD2       ; render text in A with Subroutine:CLRCHN
-  ;      DEX             ; decrement X
-  ;      BPL GETCHAR     ; loop until X goes negative
-  ;      RTS
+  
+  setHighscore
+    ;IFSC>HSTHEN HS=SC:SC=0
+    RTS
+    
+  printMessages 
+    LDX #$8A       ; initialize x to message length
+      GETCHAR
+        LDA TITLEMESSAGE,X     ; grab byte
+        JSR CHROUT       ; render text in A with Subroutine:CLRCHN
+        DEX             ; decrement X
+        BNE GETCHAR     ; loop until X goes negative
+      ;convert 16bit value to decimal
+      ;print HS to clearScreen
+      
+      RTS
     
   titleScreen
     JSR clearScreen
-    ;JSR setHighscore
+    JSR setHighscore
     JSR printMessages
     JSR readJoystick
     RTS 
     
+  * = $2000
+  !byte $20,$3A,$59,$41,$44,$20,$45,$48,$54,$20,$46,$4F,$20,$45,$52,$4F,$43,$53,$48,$47,$49,$48
+  !byte $9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D
+  !byte $9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$11,$11,$11,$59,$41,$4C,$50,$20,$4F,$54,$20
+  !byte $29,$32,$54,$52,$4F,$50,$20,$4B,$43,$49,$54,$53,$59,$4F,$4A,$28,$20,$45,$52,$49,$46
+  !byte $20,$53,$53,$45,$52,$50,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D
+  !byte $9D,$11,$11,$11,$52,$45,$50,$45,$45,$57,$53,$20,$41,$49,$52,$45,$54,$43,$41,$42,$11
+  !byte $11,$11,$11,$11,$11,$11,$1D,$0 ;Title screen text
+  !byte $0,$0  ;Highscore
+  !byte $0,$0  ;Score
