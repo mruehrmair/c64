@@ -11,8 +11,9 @@
   SCREENPLAYERZEROA  = $fd ; Zero page addr. to store player position ($fd,$fe)
   
   ;characters
-  PLAYERCHAR = $71
-  XCHAR = $58
+  PLAYERCHAR = $51
+  XCHAR = $18
+  SPACECHAR = $60
   
   ;screen and color addresses
   BGCOLOR = $D021 ;
@@ -257,7 +258,7 @@
     JSR setHighscore
     JSR printMessages
     JSR printHighscore
-    JSR incrementScore ; does not belong here      
+    ;JSR incrementScore ; does not belong here      
     JSR waitForFire
     RTS
     
@@ -280,6 +281,7 @@
     JMP gameLoop
          
   movePlayer  
+    JSR clearPlayer
     LDA #2
     CMP JOYSTICKINPUT
     BEQ @goUp
@@ -298,29 +300,25 @@
     PHA
     LDA #1 ; Minus
     PHA
-    JSR @move
-    RTS
+    JMP @move
    @goRight
     LDA #1; Value 
     PHA
     LDA #0 ; Plus
     PHA
-    JSR @move
-    RTS
+    JMP @move
    @goDown
     LDA #40; Value 
     PHA
     LDA #0 ; Plus
     PHA
-    JSR @move
-    RTS
+    JMP @move
    @goLeft
     LDA #1; Value 
     PHA
     LDA #1 ; Minus
     PHA
-    JSR @move
-    RTS
+    JMP @move
    @move
     ; change values in zero page
     PLA
@@ -328,13 +326,13 @@
     BEQ @minusPosition; Minus
     CMP #0
     BEQ @plusPosition
-    RTS
     
   @minusPosition ; A = Value - A
     PLA ;value into a
     EOR #$FF
     SEC
     ADC SCREENPLAYERZEROA
+    STA SCREENPLAYERZEROA
     BCC @carrynotset
     RTS
   
@@ -342,6 +340,7 @@
     CLC
     PLA
     ADC SCREENPLAYERZEROA
+    STA SCREENPLAYERZEROA
     BCS @carryset    
     RTS
   
@@ -351,6 +350,12 @@
     
   @carrynotset
     DEC SCREENPLAYERZEROA+1
+    RTS
+    
+  clearPlayer
+    LDY #$0
+    LDA #SPACECHAR ; load char
+    STA (SCREENPLAYERZEROA),y ; Print to screen        
     RTS
     
   drawPlayer
