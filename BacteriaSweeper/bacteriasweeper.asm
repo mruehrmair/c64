@@ -1,17 +1,25 @@
   ;Bacteria Sweeper
 
 
-  ;kernal addresses
+  ;kernal and system addresses 
   CHROUT  = $FFD2 ; kernal table for Write byte to default output.
-
+  RANDOMNUMBER = $D41B ; SID random number
+  
   ;zeropage adresses
-  JOYSTICKINPUT   = $02 ;0=nothing, 1=fire, 2=up, 4=right, 8=down, 16=left, 32 = down right, 64 = down left, 128 = up right, 255 = up left
-
+  JOYSTICKINPUT      = $02 ;0=nothing, 1=fire, 2=up, 4=right, 8=down, 16=left, 32 = down right, 64 = down left, 128 = up right, 255 = up left
+  SCREENSPAWNZEROA   = $fb ; Zero page addr. to store random spawning position ($fb,$fc)
+  SCREENPLAYERZEROA  = $fd ; Zero page addr. to store player position ($fd,$fe)
+  
+  ;characters
+  PLAYERCHAR = $71
+  XCHAR = $58
+  
   ;screen and color addresses
   BGCOLOR = $D021 ;
   BORDERCOLOR = $D020 ;
   CHRCOLOR = $0286 ;
   HSSCREEN = $061F ;
+  PLAYERPOS = $05F9; Player starting position on screen
 
   ;joystick addresses 
   CIAPRA = $DC00     ;joystick port 2
@@ -34,7 +42,6 @@
   SCOREB2 = $208F
   SCOREB3 = $2090
   
-  
   ;startup address
     * = $0801
   ;create BASIC startup (SYS line)
@@ -43,7 +50,8 @@
    * = $080D
     JSR init
     JSR titleScreen
-    ;JSR gameloop
+    JSR prepareGame
+    JSR gameLoop
     RTS
   
   init:
@@ -51,7 +59,7 @@
     JSR setColors
     ;  jsr loopcounter
     RTS
-  
+    
   clearScreen
     LDA #$93
     JSR CHROUT   
@@ -74,19 +82,76 @@
     STA $D412 ; voice 3 control register
     RTS
   
-  readJoystickFire
+  readJoystick
     ;Load in y register
     LDY #0
     STY JOYSTICKINPUT ;Store input in zero page
     LDA CIAPRA        ;** Read port 2
     AND #JOYSMB
     BEQ @joyFire
-    JMP readJoystickFire
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMR
+    BEQ @joyRight
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMU
+    BEQ @joyUp
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSML
+    BEQ @joyLeft
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMD
+    BEQ @joyDown
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMUR
+    BEQ @joyUpRight
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMUL
+    BEQ @joyUpLeft
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMDL
+    BEQ @joyDownLeft
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMDR
+    BEQ @joyDownRight
+    RTS
+    
    @joyFire
     LDY #1
     STY JOYSTICKINPUT
     RTS
-  
+   @joyRight
+    LDY #4
+    STY JOYSTICKINPUT
+    RTS
+   @joyUp
+    LDY #2
+    STY JOYSTICKINPUT
+    RTS
+   @joyLeft
+    LDY #16
+    STY JOYSTICKINPUT
+    RTS   
+   @joyDown
+    LDY #8
+    STY JOYSTICKINPUT
+    RTS
+   @joyUpRight
+    LDY #128
+    STY JOYSTICKINPUT
+    RTS
+   @joyUpLeft
+    LDY #255
+    STY JOYSTICKINPUT
+    RTS
+   @joyDownRight
+    LDY #32
+    STY JOYSTICKINPUT
+    RTS
+   @joyDownLeft
+    LDY #64
+    STY JOYSTICKINPUT
+    RTS        
+    
   setHighscore
     ;IFSC>HSTHEN HS=SC:SC=0
     ;compare msb
@@ -177,16 +242,123 @@
       ;convert 16bit value to decimal
       ;print HS to clearScreen      
       RTS
-    
+  
+  waitForFire
+     JSR readJoystick
+     LDA #1
+     CMP JOYSTICKINPUT
+     BEQ @go
+     JMP waitForFire
+    @go
+     RTS
+      
   titleScreen
     JSR clearScreen
     JSR setHighscore
     JSR printMessages
     JSR printHighscore
-    JSR incrementScore    
-    JSR readJoystickFire
-    RTS 
+    JSR incrementScore ; does not belong here      
+    JSR waitForFire
+    RTS
     
+  prepareGame
+    JSR clearScreen
+    JSR initPlayer
+    RTS
+  
+  initPlayer
+    LDA #<PLAYERPOS ; LSB
+    STA SCREENPLAYERZEROA
+    LDA #>PLAYERPOS ; MSB
+    STA SCREENPLAYERZEROA+1
+    RTS
+  
+  gameLoop
+    JSR readJoystick
+    JSR movePlayer
+    JSR drawPlayer
+    JMP gameLoop
+         
+  movePlayer  
+    LDA #2
+    CMP JOYSTICKINPUT
+    BEQ @goUp
+    LDA #4
+    CMP JOYSTICKINPUT
+    BEQ @goRight
+    LDA #16
+    CMP JOYSTICKINPUT
+    BEQ @goLeft
+    LDA #8
+    CMP JOYSTICKINPUT
+    BEQ @goDown
+    RTS
+   @goUp
+    LDA #40; Value 
+    PHA
+    LDA #1 ; Minus
+    PHA
+    JSR @move
+    RTS
+   @goRight
+    LDA #1; Value 
+    PHA
+    LDA #0 ; Plus
+    PHA
+    JSR @move
+    RTS
+   @goDown
+    LDA #40; Value 
+    PHA
+    LDA #0 ; Plus
+    PHA
+    JSR @move
+    RTS
+   @goLeft
+    LDA #1; Value 
+    PHA
+    LDA #1 ; Minus
+    PHA
+    JSR @move
+    RTS
+   @move
+    ; change values in zero page
+    PLA
+    CMP #1
+    BEQ @minusPosition; Minus
+    CMP #0
+    BEQ @plusPosition
+    RTS
+    
+  @minusPosition ; A = Value - A
+    PLA ;value into a
+    EOR #$FF
+    SEC
+    ADC SCREENPLAYERZEROA
+    BCC @carrynotset
+    RTS
+  
+  @plusPosition
+    CLC
+    PLA
+    ADC SCREENPLAYERZEROA
+    BCS @carryset    
+    RTS
+  
+   @carryset
+    INC SCREENPLAYERZEROA+1
+    RTS
+    
+  @carrynotset
+    DEC SCREENPLAYERZEROA+1
+    RTS
+    
+  drawPlayer
+    LDY #$0
+    LDA #PLAYERCHAR ; load char
+    STA (SCREENPLAYERZEROA),y ; Print to screen        
+    RTS
+  
   * = $2000
   !byte $20,$3A,$59,$41,$44,$20,$45,$48,$54,$20,$46,$4F,$20,$45,$52,$4F,$43,$53,$48,$47,$49,$48
   !byte $9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D
