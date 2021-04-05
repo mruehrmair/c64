@@ -5,7 +5,7 @@
   CHROUT  = $FFD2 ; kernal table for Write byte to default output.
 
   ;zeropage adresses
-  JOYSTICKINPUT   = $02 ;0=nothing, 1=fire, 2=up, 4=right, 8=down, 16=left
+  JOYSTICKINPUT   = $02 ;0=nothing, 1=fire, 2=up, 4=right, 8=down, 16=left, 32 = down right, 64 = down left, 128 = up right, 255 = up left
 
   ;screen and color addresses
   BGCOLOR = $D021 ;
@@ -81,7 +81,7 @@
     LDA CIAPRA        ;** Read port 2
     AND #JOYSMB
     BEQ @joyFire
-    JMP readJoystick
+    JMP readJoystickFire
    @joyFire
     LDY #1
     STY JOYSTICKINPUT
