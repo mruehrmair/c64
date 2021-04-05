@@ -18,7 +18,11 @@
   JOYSMR = %00001000​;joystik mask right 
   JOYSML = %00000100​;joystick mask left 
   JOYSMU = %00000001​;joystick mask up 
-  JOYSMD = %00000010​;joystick mask down 
+  JOYSMD = %00000010​;joystick mask down
+  JOYSMUR = %00001001​;joystik mask up right 
+  JOYSMUL = %00000101​;joystick mask up left 
+  JOYSMDR = %00001010​;joystick mask down right 
+  JOYSMDL = %00000110​;joystick mask down left
   JOYSMB = %00010000​;joystick mask button
   
   ;data addresses
@@ -70,7 +74,7 @@
     STA $D412 ; voice 3 control register
     RTS
   
-  readJoystick
+  readJoystickFire
     ;Load in y register
     LDY #0
     STY JOYSTICKINPUT ;Store input in zero page
@@ -133,21 +137,36 @@
   
   plotDigitHS
      CLC
-     ADC #48
+     ADC #48 ; add $30 on petscii table
      STA HSSCREEN,y
      DEY
      RTS
   
- ; incrementScore
- ;    SED
- ;    CLC
- ;    LDA SCOREB1
- ;    ADC #10
- ;    STA SCOREB1
- ;    CLD
- ;    RTS
+  incrementScore
+     SED ;Set to binary coded decimal
+     CLC
+     LDA SCOREB1
+     ADC #10
+     STA SCOREB1
+     BCS @carryDecScore
+     CLD
+     RTS
      
+    @carryDecScore
+     CLC
+     LDA SCOREB2
+     ADC #1
+     STA SCOREB2
+     BCS @carryDecScore2
+     RTS
      
+    @carryDecScore2
+     CLC
+     LDA SCOREB3
+     ADC #1
+     STA SCOREB3 
+     RTS
+             
   printMessages 
     LDX #$8A       ; initialize x to message length
       GETCHAR
@@ -164,8 +183,8 @@
     JSR setHighscore
     JSR printMessages
     JSR printHighscore
-    ;JSR incrementScore    
-    JSR readJoystick
+    JSR incrementScore    
+    JSR readJoystickFire
     RTS 
     
   * = $2000
