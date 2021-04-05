@@ -11,7 +11,7 @@
   BGCOLOR = $D021 ;
   BORDERCOLOR = $D020 ;
   CHRCOLOR = $0286 ;
-  HSSCREEN = $0408 ;
+  HSSCREEN = $061F ;
 
   ;joystick addresses 
   CIAPRA = $DC00     ;joystick port 2
@@ -23,10 +23,14 @@
   
   ;data addresses
   TITLEMESSAGE = $2000
-  HIGHSCORELB = $208B
-  HIGHSCOREHB = $208C
-  SCORELB = $208D
-  SCOREHB = $208E
+  HIGHSCOREB1 = $208B
+  HIGHSCOREB2 = $208C
+  HIGHSCOREB3 = $208D
+  SCOREB1 = $208E
+  SCOREB2 = $208F
+  SCOREB3 = $2090
+  
+  
   ;startup address
     * = $0801
   ;create BASIC startup (SYS line)
@@ -70,12 +74,80 @@
     ;Load in y register
     LDY #0
     STY JOYSTICKINPUT ;Store input in zero page
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMB
+    BEQ @joyFire
+    JMP readJoystick
+   @joyFire
+    LDY #1
+    STY JOYSTICKINPUT
     RTS
   
   setHighscore
     ;IFSC>HSTHEN HS=SC:SC=0
+    ;compare msb
+    CLC
+    LDA SCOREB3  ;load score msb
+    CMP HIGHSCOREB3 ;compare score msb with highscore (highscore - score)
+    BEQ @cmpScore2
+    BCS @copyScore    
     RTS
-    
+   @cmpScore2 
+    LDA SCOREB2  ;load score 
+    CMP HIGHSCOREB2 ;compare score with highscore (highscore - score)
+    BEQ @cmpScore1
+    BCS @copyScore    
+    RTS 
+   @cmpScore1 
+    LDA SCOREB1  ;load score lsb
+    CMP HIGHSCOREB1 ;compare score lsb with highscore (highscore - score)
+    BCS @copyScore
+    RTS     
+   @copyScore
+    LDA SCOREB1
+    STA HIGHSCOREB1
+    LDA SCOREB2
+    STA HIGHSCOREB2
+    LDA SCOREB3
+    STA HIGHSCOREB3
+    RTS
+  
+  printHighscore    
+    LDY #5
+    LDX #0
+    sloop
+      LDA HIGHSCOREB1,x
+      PHA
+      AND #$0F
+      JSR plotDigitHS
+      PLA
+      LSR
+      LSR
+      LSR
+      LSR
+      JSR plotDigitHS
+      INX
+      CPX #3
+      BNE sloop 
+    RTS
+  
+  plotDigitHS
+     CLC
+     ADC #48
+     STA HSSCREEN,y
+     DEY
+     RTS
+  
+ ; incrementScore
+ ;    SED
+ ;    CLC
+ ;    LDA SCOREB1
+ ;    ADC #10
+ ;    STA SCOREB1
+ ;    CLD
+ ;    RTS
+     
+     
   printMessages 
     LDX #$8A       ; initialize x to message length
       GETCHAR
@@ -84,14 +156,15 @@
         DEX             ; decrement X
         BNE GETCHAR     ; loop until X goes negative
       ;convert 16bit value to decimal
-      ;print HS to clearScreen
-      
+      ;print HS to clearScreen      
       RTS
     
   titleScreen
     JSR clearScreen
     JSR setHighscore
     JSR printMessages
+    JSR printHighscore
+    ;JSR incrementScore    
     JSR readJoystick
     RTS 
     
@@ -103,5 +176,5 @@
   !byte $20,$53,$53,$45,$52,$50,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D
   !byte $9D,$11,$11,$11,$52,$45,$50,$45,$45,$57,$53,$20,$41,$49,$52,$45,$54,$43,$41,$42,$11
   !byte $11,$11,$11,$11,$11,$11,$1D,$0 ;Title screen text
-  !byte $0,$0  ;Highscore
-  !byte $0,$0  ;Score
+  !byte $0,$07,$0  ;Highscore
+  !byte $93,$08,$0  ;Score
