@@ -21,7 +21,8 @@
   CHRCOLOR = $0286 ;
   HSSCREEN = $061F ;
   PLAYERPOS = $05F9; Player starting position on screen
-
+  RASTER = $D012
+  
   ;joystick addresses 
   CIAPRA = $DC00     ;joystick port 2
   JOYSMR = %00001000​;joystik mask right 
@@ -274,12 +275,20 @@
     STA SCREENPLAYERZEROA+1
     RTS
   
-  gameLoop
-    JSR readJoystick
+  gameLoop    
+    JSR readJoystick    
     JSR movePlayer
     JSR drawPlayer
+    JSR waitForRaster
+    JSR waitForRaster
+    JSR waitForRaster
     JMP gameLoop
-         
+  
+  waitForRaster
+    LDA RASTER
+    BNE waitForRaster
+    RTS
+    
   movePlayer  
     JSR clearPlayer
     LDA #2
@@ -293,7 +302,20 @@
     BEQ @goLeft
     LDA #8
     CMP JOYSTICKINPUT
-    BEQ @goDown
+    BEQ @goDown   
+    LDA #128
+    CMP JOYSTICKINPUT
+    BEQ @goUpRight
+    LDA #255
+    CMP JOYSTICKINPUT
+    BEQ @goUpLeft
+    LDA #32
+    CMP JOYSTICKINPUT
+    BEQ @goDownRight
+    LDA #64
+    CMP JOYSTICKINPUT
+    BEQ @goDownLeft
+    
     RTS
    @goUp
     LDA #40; Value 
@@ -319,6 +341,30 @@
     LDA #1 ; Minus
     PHA
     JMP @move
+   @goUpLeft
+    LDA #41; Value 
+    PHA
+    LDA #1 ; Minus
+    PHA
+    JMP @move
+   @goUpRight
+    LDA #39; Value 
+    PHA
+    LDA #1 ; Minus
+    PHA
+    JMP @move
+   @goDownLeft
+    LDA #39; Value 
+    PHA
+    LDA #0 ; Plus
+    PHA
+    JMP @move
+   @goDownRight
+    LDA #41; Value 
+    PHA
+    LDA #0 ; plus
+    PHA
+    JMP @move 
    @move
     ; change values in zero page
     PLA
@@ -359,11 +405,51 @@
     RTS
     
   drawPlayer
+    JSR @checkScreenMaxAddress
+    JSR @checkScreenMinAddress
     LDY #$0
     LDA #PLAYERCHAR ; load char
     STA (SCREENPLAYERZEROA),y ; Print to screen        
     RTS
-  
+    
+   @checkScreenMaxAddress
+    LDY #$07 ;check screen bottom
+    CPY SCREENPLAYERZEROA+1 ; load msb
+    BMI @setMaxScreen
+    BEQ @checklsbMax   
+    RTS
+    
+   @checklsbMax
+    LDA #$E7
+    CMP SCREENPLAYERZEROA
+    BMI @setMaxScreen
+    RTS
+    
+   @setMaxScreen  
+    LDA #$07
+    STA $fe
+    LDA #$e7
+    STA $fd
+    RTS
+    
+    @checkScreenMinAddress
+    LDY #$04 ;check screen bottom
+    CPY SCREENPLAYERZEROA+1 ; load msb    
+    BEQ @zero
+    BPL @setMinScreen   ;is less than 4 - not ok
+    BMI @zero ; negative flag is set - ok
+    RTS
+    
+   @zero 
+    RTS ;04 is ok
+    
+   @setMinScreen  
+    LDA #$04
+    STA $fe
+    LDA #$00
+    STA $fd
+    RTS
+    
   * = $2000
   !byte $20,$3A,$59,$41,$44,$20,$45,$48,$54,$20,$46,$4F,$20,$45,$52,$4F,$43,$53,$48,$47,$49,$48
   !byte $9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D
