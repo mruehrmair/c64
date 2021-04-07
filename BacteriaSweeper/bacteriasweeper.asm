@@ -1,5 +1,7 @@
   ;Bacteria Sweeper
-
+    
+  ;game settings
+  GAMESPEED = 5; 1 is fastest n is slower
 
   ;kernal and system addresses 
   CHROUT  = $FFD2 ; kernal table for Write byte to default output.
@@ -13,14 +15,14 @@
   ;characters
   PLAYERCHAR = $51
   XCHAR = $18
-  SPACECHAR = $60
+  SPACECHAR = $20
   
   ;screen and color addresses
   BGCOLOR = $D021 ;
   BORDERCOLOR = $D020 ;
   CHRCOLOR = $0286 ;
   HSSCREEN = $061F ;
-  PLAYERPOS = $05F9; Player starting position on screen
+  PLAYERPOS = $2091; Address of player starting position on screen
   RASTER = $D012
   
   ;joystick addresses 
@@ -89,6 +91,18 @@
     LDY #0
     STY JOYSTICKINPUT ;Store input in zero page
     LDA CIAPRA        ;** Read port 2
+    AND #JOYSMUR
+    BEQ @joyUpRight
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMUL
+    BEQ @joyUpLeft
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMDL
+    BEQ @joyDownLeft
+    LDA CIAPRA        ;** Read port 2
+    AND #JOYSMDR
+    BEQ @joyDownRight
+    LDA CIAPRA        ;** Read port 2
     AND #JOYSMB
     BEQ @joyFire
     LDA CIAPRA        ;** Read port 2
@@ -103,18 +117,6 @@
     LDA CIAPRA        ;** Read port 2
     AND #JOYSMD
     BEQ @joyDown
-    LDA CIAPRA        ;** Read port 2
-    AND #JOYSMUR
-    BEQ @joyUpRight
-    LDA CIAPRA        ;** Read port 2
-    AND #JOYSMUL
-    BEQ @joyUpLeft
-    LDA CIAPRA        ;** Read port 2
-    AND #JOYSMDL
-    BEQ @joyDownLeft
-    LDA CIAPRA        ;** Read port 2
-    AND #JOYSMDR
-    BEQ @joyDownRight
     RTS
     
    @joyFire
@@ -269,28 +271,38 @@
     RTS
   
   initPlayer
-    LDA #<PLAYERPOS ; LSB
+    LDA PLAYERPOS ; LSB
     STA SCREENPLAYERZEROA
-    LDA #>PLAYERPOS ; MSB
+    LDA PLAYERPOS+1 ; MSB
     STA SCREENPLAYERZEROA+1
     RTS
   
   gameLoop    
-    JSR readJoystick    
-    JSR movePlayer
-    JSR drawPlayer
-    JSR waitForRaster
-    JSR waitForRaster
-    JSR waitForRaster
+    JSR readJoystick       
+    JSR clearPlayer ; clear previous position
+    JSR savePlayer ; save player position before movement 
+    JSR movePlayer ; adjust zero page values according to joystick movement    
+    JSR drawPlayer ; draw new position
+    LDX #GAMESPEED
+    @waitLoop      
+      JSR waitForRaster
+      DEX
+      BNE @waitLoop    
     JMP gameLoop
   
   waitForRaster
     LDA RASTER
     BNE waitForRaster
     RTS
+  
+  savePlayer
+    LDA SCREENPLAYERZEROA
+    STA PLAYERPOS
+    LDA SCREENPLAYERZEROA+1
+    STA PLAYERPOS+1
+    RTS
     
   movePlayer  
-    JSR clearPlayer
     LDA #2
     CMP JOYSTICKINPUT
     BEQ @goUp
@@ -405,50 +417,32 @@
     RTS
     
   drawPlayer
-    JSR @checkScreenMaxAddress
-    JSR @checkScreenMinAddress
+    JMP @checkScreenMinAddress
+    JMP @checkScreenMaxAddress   ; is never called 
+   @dontDraw ;don't draw new position use saved old one
+    LDA PLAYERPOS
+    STA SCREENPLAYERZEROA
+    LDA PLAYERPOS+1
+    STA SCREENPLAYERZEROA+1
+   @draw ;draw new movement position
     LDY #$0
-    LDA #PLAYERCHAR ; load char
-    STA (SCREENPLAYERZEROA),y ; Print to screen        
+    LDA #PLAYERCHAR ; load char 
+    STA (SCREENPLAYERZEROA),y ; Print to screen
     RTS
     
    @checkScreenMaxAddress
     LDY #$07 ;check screen bottom
     CPY SCREENPLAYERZEROA+1 ; load msb
-    BMI @setMaxScreen
-    BEQ @checklsbMax   
-    RTS
-    
-   @checklsbMax
-    LDA #$E7
-    CMP SCREENPLAYERZEROA
-    BMI @setMaxScreen
-    RTS
-    
-   @setMaxScreen  
-    LDA #$07
-    STA $fe
-    LDA #$e7
-    STA $fd
-    RTS
-    
-    @checkScreenMinAddress
+    BPL @draw ;
+    JMP @dontDraw    
+   
+   @checkScreenMinAddress
     LDY #$04 ;check screen bottom
     CPY SCREENPLAYERZEROA+1 ; load msb    
-    BEQ @zero
-    BPL @setMinScreen   ;is less than 4 - not ok
-    BMI @zero ; negative flag is set - ok
-    RTS
-    
-   @zero 
-    RTS ;04 is ok
-    
-   @setMinScreen  
-    LDA #$04
-    STA $fe
-    LDA #$00
-    STA $fd
-    RTS
+    BEQ @draw
+    BPL @dontDraw   ;is less than 4 - not ok
+    BMI @draw ; negative flag is set - ok
+    JMP @draw
     
   * = $2000
   !byte $20,$3A,$59,$41,$44,$20,$45,$48,$54,$20,$46,$4F,$20,$45,$52,$4F,$43,$53,$48,$47,$49,$48
@@ -460,3 +454,4 @@
   !byte $11,$11,$11,$11,$11,$11,$1D,$0 ;Title screen text
   !byte $0,$07,$0  ;Highscore
   !byte $93,$08,$0  ;Score
+  !byte $F9,$05 ; Player position
