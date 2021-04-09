@@ -282,6 +282,8 @@
     JSR clearPlayer ; clear previous position
     JSR savePlayer ; save player position before movement 
     JSR movePlayer ; adjust zero page values according to joystick movement    
+    JSR checkScreenMinAddress
+    JSR checkScreenMaxAddress 
     JSR drawPlayer ; draw new position
     LDX #GAMESPEED
     @waitLoop      
@@ -416,33 +418,39 @@
     STA (SCREENPLAYERZEROA),y ; Print to screen        
     RTS
     
-  drawPlayer
-    JMP @checkScreenMinAddress
-    JMP @checkScreenMaxAddress   ; is never called 
-   @dontDraw ;don't draw new position use saved old one
+   restorePlayerPosition ;don't draw new position use saved old one
     LDA PLAYERPOS
     STA SCREENPLAYERZEROA
     LDA PLAYERPOS+1
     STA SCREENPLAYERZEROA+1
-   @draw ;draw new movement position
+    RTS
+    
+   drawPlayer
     LDY #$0
     LDA #PLAYERCHAR ; load char 
     STA (SCREENPLAYERZEROA),y ; Print to screen
     RTS
     
-   @checkScreenMaxAddress
+   checkScreenMaxAddress
     LDY #$07 ;check screen bottom
     CPY SCREENPLAYERZEROA+1 ; load msb
-    BPL @draw ;
-    JMP @dontDraw    
+    BEQ @checkLsb ;is equal to 7 check further
+    BMI restorePlayerPosition   ;is more than 7 - not ok
+    RTS
+    @checkLsb
+     CLC
+     LDY #$E7
+     CPY SCREENPLAYERZEROA
+     BCC restorePlayerPosition ;is more than E7 - not ok
+    RTS
    
-   @checkScreenMinAddress
+   checkScreenMinAddress
     LDY #$04 ;check screen bottom
-    CPY SCREENPLAYERZEROA+1 ; load msb    
-    BEQ @draw
-    BPL @dontDraw   ;is less than 4 - not ok
-    BMI @draw ; negative flag is set - ok
-    JMP @draw
+    CPY SCREENPLAYERZEROA+1 ; load msb
+    BEQ @draw ; is equal to 4 - still ok
+    BPL restorePlayerPosition   ;is less than 4 - not ok
+    @draw
+    RTS
     
   * = $2000
   !byte $20,$3A,$59,$41,$44,$20,$45,$48,$54,$20,$46,$4F,$20,$45,$52,$4F,$43,$53,$48,$47,$49,$48
