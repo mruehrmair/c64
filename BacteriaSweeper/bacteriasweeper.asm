@@ -1,8 +1,11 @@
   ;Bacteria Sweeper
     
   ;game settings
-  GAMESPEED = 5; 1 is fastest n is slower
-
+  GAMESPEED = 10; 1 is fastest n is slower
+  BACTERIACOUNTER = $2093 ;adress where the number of enemies to be spawned is found
+  LEVEL = $2094
+  BACTERIAINCREASE = 2; Bacteria spawn increase per level
+  
   ;kernal and system addresses 
   CHROUT  = $FFD2 ; kernal table for Write byte to default output.
   RANDOMNUMBER = $D41B ; SID random number
@@ -23,6 +26,7 @@
   CHRCOLOR = $0286 ;
   HSSCREEN = $061F ;
   PLAYERPOS = $2091; Address of player starting position on screen
+  SCREENSPAWNPOS = $04E0 ; Screen RAM address where spawning starts 
   RASTER = $D012
   
   ;joystick addresses 
@@ -63,6 +67,34 @@
     JSR setColors
     ;  jsr loopcounter
     RTS
+  
+  prepareGame
+    JSR clearScreen
+    JSR initPlayer
+    JSR nextLevel
+    RTS
+  
+  initPlayer
+    LDA PLAYERPOS ; LSB
+    STA SCREENPLAYERZEROA
+    LDA PLAYERPOS+1 ; MSB
+    STA SCREENPLAYERZEROA+1
+    RTS
+  
+  gameLoop    
+    JSR readJoystick       
+    JSR clearPlayer ; clear previous position
+    JSR savePlayer ; save player position before movement 
+    JSR movePlayer ; adjust zero page values according to joystick movement    
+    JSR checkScreenMinAddress
+    JSR checkScreenMaxAddress 
+    JSR drawPlayer ; draw new position
+    LDX #GAMESPEED
+    @waitLoop      
+      JSR waitForRaster
+      DEX
+      BNE @waitLoop    
+    JMP gameLoop
     
   clearScreen
     LDA #$93
@@ -210,31 +242,6 @@
      STA HSSCREEN,y
      DEY
      RTS
-  
-  incrementScore
-     SED ;Set to binary coded decimal
-     CLC
-     LDA SCOREB1
-     ADC #10
-     STA SCOREB1
-     BCS @carryDecScore
-     CLD
-     RTS
-     
-    @carryDecScore
-     CLC
-     LDA SCOREB2
-     ADC #1
-     STA SCOREB2
-     BCS @carryDecScore2
-     RTS
-     
-    @carryDecScore2
-     CLC
-     LDA SCOREB3
-     ADC #1
-     STA SCOREB3 
-     RTS
              
   printMessages 
     LDX #$8A       ; initialize x to message length
@@ -265,33 +272,6 @@
     JSR waitForFire
     RTS
     
-  prepareGame
-    JSR clearScreen
-    JSR initPlayer
-    RTS
-  
-  initPlayer
-    LDA PLAYERPOS ; LSB
-    STA SCREENPLAYERZEROA
-    LDA PLAYERPOS+1 ; MSB
-    STA SCREENPLAYERZEROA+1
-    RTS
-  
-  gameLoop    
-    JSR readJoystick       
-    JSR clearPlayer ; clear previous position
-    JSR savePlayer ; save player position before movement 
-    JSR movePlayer ; adjust zero page values according to joystick movement    
-    JSR checkScreenMinAddress
-    JSR checkScreenMaxAddress 
-    JSR drawPlayer ; draw new position
-    LDX #GAMESPEED
-    @waitLoop      
-      JSR waitForRaster
-      DEX
-      BNE @waitLoop    
-    JMP gameLoop
-  
   waitForRaster
     LDA RASTER
     BNE waitForRaster
@@ -328,8 +308,7 @@
     BEQ @goDownRight
     LDA #64
     CMP JOYSTICKINPUT
-    BEQ @goDownLeft
-    
+    BEQ @goDownLeft    
     RTS
    @goUp
     LDA #40; Value 
@@ -451,6 +430,84 @@
     BPL restorePlayerPosition   ;is less than 4 - not ok
     @draw
     RTS
+  
+   spawnBacteria                        
+    LDX BACTERIACOUNTER ; loop counter
+    screenpos         
+    JSR rndpos
+    DEX
+    BNE screenpos
+    RTS
+
+    ;****sub routine determine random screen position
+    rndpos        
+    CLC
+    LDA #<SCREENSPAWNPOS ;load screen ram in zero page into a - low byte
+    ADC RANDOMNUMBER
+    STA SCREENSPAWNZEROA
+    LDA #>SCREENSPAWNPOS ;
+    STA SCREENSPAWNZEROA+1
+    BCC carryzero
+    INC SCREENSPAWNZEROA+1     
+    carryzero                
+    CLC
+    LDA SCREENSPAWNZEROA
+    ADC RANDOMNUMBER
+    STA SCREENSPAWNZEROA
+    BCC carryzero2
+    INC SCREENSPAWNZEROA+1
+    carryzero2
+    CLC
+    LDA SCREENSPAWNZEROA
+    ADC RANDOMNUMBER
+    STA SCREENSPAWNZEROA
+    BCC carryzero3
+    INC SCREENSPAWNZEROA+1
+    carryzero3                
+    LDY #$0
+    LDA (SCREENSPAWNZEROA),y
+    CMP #XCHAR ;compare a with CHAR
+    BEQ rndpos;
+    LDA #XCHAR ; load char
+    STA (SCREENSPAWNZEROA),y ; Print to screen if not equal        
+    RTS
+    
+  incrementScore
+     SED ;Set to binary coded decimal
+     CLC
+     LDA SCOREB1
+     ADC #10
+     STA SCOREB1
+     BCS @carryDecScore
+     CLD
+     RTS
+  
+    @carryDecScore
+     CLC
+     LDA SCOREB2
+     ADC #1
+     STA SCOREB2
+     BCS @carryDecScore2
+     RTS
+     
+    @carryDecScore2
+     CLC
+     LDA SCOREB3
+     ADC #1
+     STA SCOREB3 
+     RTS     
+     
+   nextLevel
+    ; level +1
+    LDA LEVEL
+    ADC #1
+    STA LEVEL
+    ;set number of bacteria to be spawned
+    LDA BACTERIACOUNTER
+    ADC #BACTERIAINCREASE
+    STA BACTERIACOUNTER 
+    JSR spawnBacteria
+    RTS
     
   * = $2000
   !byte $20,$3A,$59,$41,$44,$20,$45,$48,$54,$20,$46,$4F,$20,$45,$52,$4F,$43,$53,$48,$47,$49,$48
@@ -463,3 +520,5 @@
   !byte $0,$07,$0  ;Highscore
   !byte $93,$08,$0  ;Score
   !byte $F9,$05 ; Player position
+  !byte $03; number of bacteria to be spawned
+  !byte $0;level

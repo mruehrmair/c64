@@ -23,7 +23,7 @@ init:
 ;  jsr loopcounter
   rts
 
-initRandomSID => 28683
+initRandomSID ;=> 28683
 ;Random noise with SID
          LDA #$FF  ; maximum frequency value
          STA $D40E ; voice 3 frequency low byte
