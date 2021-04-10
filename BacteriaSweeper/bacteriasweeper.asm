@@ -25,7 +25,9 @@
   BORDERCOLOR = $D020 ;
   CHRCOLOR = $0286 ;
   HSSCREEN = $061F ;
+  SCORESCREEN = $0407; Screen RAM address of Score in status bar
   PLAYERPOS = $2091; Address of player starting position on screen
+  SCREENSTART = $0400
   SCREENSPAWNPOS = $04E0 ; Screen RAM address where spawning starts 
   RASTER = $D012
   
@@ -43,6 +45,7 @@
   
   ;data addresses
   TITLEMESSAGE = $2000
+  STATUSBARMESSAGE = $2095
   HIGHSCOREB1 = $208B
   HIGHSCOREB2 = $208C
   HIGHSCOREB3 = $208D
@@ -69,7 +72,6 @@
     RTS
   
   prepareGame
-    JSR clearScreen
     JSR initPlayer
     JSR nextLevel
     RTS
@@ -82,6 +84,7 @@
     RTS
   
   gameLoop    
+    JSR printStatusBar
     JSR readJoystick       
     JSR clearPlayer ; clear previous position
     JSR savePlayer ; save player position before movement 
@@ -221,7 +224,7 @@
     LDY #5
     LDX #0
     sloop
-      LDA HIGHSCOREB1,x
+      LDA SCOREB1,x
       PHA
       AND #$0F
       JSR plotDigitHS
@@ -235,13 +238,40 @@
       CPX #3
       BNE sloop 
     RTS
-  
+    
+  printScore    
+    LDY #5
+    LDX #0
+    @sloop
+      LDA HIGHSCOREB1,x
+      PHA
+      AND #$0F
+      JSR plotDigitS
+      PLA
+      LSR
+      LSR
+      LSR
+      LSR
+      JSR plotDigitS
+      INX
+      CPX #3
+      BNE @sloop 
+    RTS
+    
+    
+  plotDigitS
+     CLC
+     ADC #48 ; add $30 on petscii table
+     STA SCORESCREEN,y
+     DEY
+     RTS
+     
   plotDigitHS
      CLC
      ADC #48 ; add $30 on petscii table
      STA HSSCREEN,y
      DEY
-     RTS
+     RTS   
              
   printMessages 
     LDX #$8A       ; initialize x to message length
@@ -488,16 +518,19 @@
      ADC #1
      STA SCOREB2
      BCS @carryDecScore2
+     CLD
      RTS
      
     @carryDecScore2
      CLC
      LDA SCOREB3
      ADC #1
-     STA SCOREB3 
-     RTS     
+     STA SCOREB3      
+     CLD
+     RTS   
      
    nextLevel
+    JSR clearScreen
     ; level +1
     LDA LEVEL
     ADC #1
@@ -507,6 +540,17 @@
     ADC #BACTERIAINCREASE
     STA BACTERIACOUNTER 
     JSR spawnBacteria
+    RTS
+   
+   printStatusBar   
+    LDX #$06       ; initialize x to message length
+      @GETCHAR
+        LDA STATUSBARMESSAGE,X     ; grab byte
+        STA SCREENSTART,X       ; render text to screen
+        DEX             ; decrement X
+        BNE @GETCHAR     ; loop until X goes negative
+      ;convert 16bit value to decimal
+      JSR printScore        
     RTS
     
   * = $2000
@@ -522,3 +566,4 @@
   !byte $F9,$05 ; Player position
   !byte $03; number of bacteria to be spawned
   !byte $0;level
+  !byte $0,$13,$03,$0F,$12,$05,$3A;Status bar message SCORE:
