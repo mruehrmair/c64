@@ -90,7 +90,8 @@
     JSR savePlayer ; save player position before movement 
     JSR movePlayer ; adjust zero page values according to joystick movement    
     JSR checkScreenMinAddress
-    JSR checkScreenMaxAddress 
+    JSR checkScreenMaxAddress
+    JSR checkIncrementScore 
     JSR drawPlayer ; draw new position
     LDX #GAMESPEED
     @waitLoop      
@@ -224,7 +225,7 @@
     LDY #5
     LDX #0
     sloop
-      LDA SCOREB1,x
+      LDA HIGHSCOREB1,x
       PHA
       AND #$0F
       JSR plotDigitHS
@@ -243,7 +244,7 @@
     LDY #5
     LDX #0
     @sloop
-      LDA HIGHSCOREB1,x
+      LDA SCOREB1,x
       PHA
       AND #$0F
       JSR plotDigitS
@@ -432,6 +433,13 @@
     STA SCREENPLAYERZEROA
     LDA PLAYERPOS+1
     STA SCREENPLAYERZEROA+1
+    RTS
+   
+   checkIncrementScore
+    LDY #$0
+    LDA #XCHAR
+    CMP (SCREENPLAYERZEROA),y
+    BEQ incrementScore
     RTS
     
    drawPlayer
