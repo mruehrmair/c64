@@ -1,7 +1,7 @@
   ;Bacteria Sweeper
     
   ;game settings
-  GAMESPEED = 10; 1 is fastest n is slower
+  GAMESPEED = 18; 1 is fastest n is slower
   BACTERIACOUNTER = $2093 ;adress where the number of enemies to be spawned is found
   LEVEL = $2094
   BACTERIAINLEVEL = $2097
@@ -102,7 +102,7 @@
       JSR waitForRaster
       DEX
       BNE @waitLoop
-    ;JSR checkNextLevel   
+    JSR checkNextLevel   
     JMP gameLoop
     
   clearScreen
@@ -501,6 +501,7 @@
    spawnBacteria                        
     LDX BACTERIACOUNTER ; loop counter
     screenpos         
+    INC BACTERIAINLEVEL ; increase number of active bacteria
     JSR rndpos
     DEX
     BNE screenpos
@@ -586,11 +587,10 @@
     JSR spawnBacteria
     RTS
    
-   ;checkNextLevel
-   ; LDA BACTERIAINLEVEL
-   ; CMP #0
-   ; BEQ nextLevel
-   ; RTS 
+   checkNextLevel
+    LDA BACTERIAINLEVEL
+    BEQ nextLevel
+    RTS 
     
    printStatusBar   
     LDX #$06       ; initialize x to message length
