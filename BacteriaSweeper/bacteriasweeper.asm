@@ -4,6 +4,7 @@
   GAMESPEED = 10; 1 is fastest n is slower
   BACTERIACOUNTER = $2093 ;adress where the number of enemies to be spawned is found
   LEVEL = $2094
+  BACTERIAINLEVEL = $2097
   BACTERIAINCREASE = 2; Bacteria spawn increase per level
   
   ;kernal and system addresses 
@@ -26,8 +27,10 @@
   CHRCOLOR = $0286 ;
   HSSCREEN = $061F ;
   SCORESCREEN = $0407; Screen RAM address of Score in status bar
+  LEVELSCREEN = $0415; Screen RAM address of Level in status bar
   PLAYERPOS = $2091; Address of player starting position on screen
   SCREENSTART = $0400
+  SCREENLEVEL = $040D
   SCREENSPAWNPOS = $04E0 ; Screen RAM address where spawning starts 
   RASTER = $D012
   
@@ -45,7 +48,8 @@
   
   ;data addresses
   TITLEMESSAGE = $2000
-  STATUSBARMESSAGE = $2095
+  STATUSBARMESSAGE = $2098
+  LEVELMESSAGE = $209F
   HIGHSCOREB1 = $208B
   HIGHSCOREB2 = $208C
   HIGHSCOREB3 = $208D
@@ -97,7 +101,8 @@
     @waitLoop      
       JSR waitForRaster
       DEX
-      BNE @waitLoop    
+      BNE @waitLoop
+    ;JSR checkNextLevel   
     JMP gameLoop
     
   clearScreen
@@ -258,12 +263,37 @@
       CPX #3
       BNE @sloop 
     RTS
-    
+  
+  printLevel    
+    LDY #5
+    LDX #0
+    @sloop1
+      LDA LEVEL,x
+      PHA
+      AND #$0F
+      JSR plotDigitLevel
+      PLA
+      LSR
+      LSR
+      LSR
+      LSR
+      JSR plotDigitLevel   
+      INX
+      CPX #3
+      BNE @sloop1
+    RTS  
     
   plotDigitS
      CLC
      ADC #48 ; add $30 on petscii table
      STA SCORESCREEN,y
+     DEY
+     RTS
+  
+  plotDigitLevel
+     CLC
+     ADC #48 ; add $30 on petscii table
+     STA LEVELSCREEN,y
      DEY
      RTS
      
@@ -298,8 +328,7 @@
     JSR clearScreen
     JSR setHighscore
     JSR printMessages
-    JSR printHighscore
-    ;JSR incrementScore ; does not belong here      
+    JSR printHighscore     
     JSR waitForFire
     RTS
     
@@ -476,7 +505,7 @@
     DEX
     BNE screenpos
     RTS
-
+    
     ;****sub routine determine random screen position
     rndpos        
     CLC
@@ -511,6 +540,7 @@
     RTS
     
   incrementScore
+     DEC BACTERIAINLEVEL ; decrease number of active bacteria
      SED ;Set to binary coded decimal
      CLC
      LDA SCOREB1
@@ -540,16 +570,28 @@
    nextLevel
     JSR clearScreen
     ; level +1
+    SED ;Set to binary coded decimal
+    CLC
     LDA LEVEL
     ADC #1
     STA LEVEL
+    CLD
     ;set number of bacteria to be spawned
     LDA BACTERIACOUNTER
     ADC #BACTERIAINCREASE
-    STA BACTERIACOUNTER 
+    STA BACTERIACOUNTER
+    ;reset number of active bacteria
+    LDA #0
+    STA BACTERIAINLEVEL
     JSR spawnBacteria
     RTS
    
+   ;checkNextLevel
+   ; LDA BACTERIAINLEVEL
+   ; CMP #0
+   ; BEQ nextLevel
+   ; RTS 
+    
    printStatusBar   
     LDX #$06       ; initialize x to message length
       @GETCHAR
@@ -558,7 +600,14 @@
         DEX             ; decrement X
         BNE @GETCHAR     ; loop until X goes negative
       ;convert 16bit value to decimal
-      JSR printScore        
+      JSR printScore
+     LDX #$07       ; initialize x to message length
+      @GETCHAR1
+        LDA LEVELMESSAGE,X     ; grab byte
+        STA SCREENLEVEL,X       ; render text to screen
+        DEX             ; decrement X
+        BNE @GETCHAR1     ; loop until X goes negative 
+      JSR printLevel
     RTS
     
   * = $2000
@@ -573,5 +622,7 @@
   !byte $93,$08,$0  ;Score
   !byte $F9,$05 ; Player position
   !byte $03; number of bacteria to be spawned
-  !byte $0;level
-  !byte $0,$13,$03,$0F,$12,$05,$3A;Status bar message SCORE:
+  !byte $0,$0,$0;level
+  !byte $0; current number of bacteria in level
+  !byte $0,$13,$03,$0F,$12,$05,$3A; Status bar message SCORE:
+  !byte $0,$20,$0C,$05,$16,$05,$0C,$3A; Status bar message LEVEL:
