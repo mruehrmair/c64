@@ -20,7 +20,7 @@
   PLAYERCHAR = $51
   XCHAR = $18
   SPACECHAR = $20
-  
+   
   ;screen and color addresses
   BGCOLOR = $D021 ;
   BORDERCOLOR = $D020 ;
@@ -32,6 +32,7 @@
   SCREENSTART = $0400
   SCREENLEVEL = $040D
   SCREENSPAWNPOS = $04E0 ; Screen RAM address where spawning starts 
+  SCREENTIMER = $041C
   RASTER = $D012
   
   ;joystick addresses 
@@ -50,6 +51,7 @@
   TITLEMESSAGE = $2000
   STATUSBARMESSAGE = $2098
   LEVELMESSAGE = $209F
+  TIMERMESSAGE = $20A7
   HIGHSCOREB1 = $208B
   HIGHSCOREB2 = $208C
   HIGHSCOREB3 = $208D
@@ -608,6 +610,13 @@
         DEX             ; decrement X
         BNE @GETCHAR1     ; loop until X goes negative 
       JSR printLevel
+      LDX #$05       ; initialize x to message length
+      @GETCHAR2
+        LDA TIMERMESSAGE,X     ; grab byte
+        STA SCREENTIMER,X       ; render text to screen
+        DEX             ; decrement X
+        BNE @GETCHAR2     ; loop until X goes negative 
+      ;JSR printTimer
     RTS
     
   * = $2000
@@ -624,5 +633,6 @@
   !byte $03; number of bacteria to be spawned
   !byte $0,$0,$0;level
   !byte $0; current number of bacteria in level
-  !byte $0,$13,$03,$0F,$12,$05,$3A; Status bar message SCORE:
-  !byte $0,$20,$0C,$05,$16,$05,$0C,$3A; Status bar message LEVEL:
+  !byte $0,$13,$03,$0F,$12,$05,$3A     ; Status bar message SCORE:
+  !byte $0,$20,$0C,$05,$16,$05,$0C,$3A ; Status bar message LEVEL:
+  !byte $0,$14,$09,$0D,$05,$3A         ; Status bar message TIME:
