@@ -28,11 +28,12 @@
   HSSCREEN = $061F ;
   SCORESCREEN = $0407; Screen RAM address of Score in status bar
   LEVELSCREEN = $0415; Screen RAM address of Level in status bar
+  TIMERSCREEN = $0422; Screen RAM address of Time in status bar
   PLAYERPOS = $2091; Address of player starting position on screen
-  SCREENSTART = $0400
-  SCREENLEVEL = $040D
+  SCREENSTART = $0400 ; Beginning of message SCORE:
+  SCREENLEVEL = $040D ; Beginning of message LEVEL:
   SCREENSPAWNPOS = $04E0 ; Screen RAM address where spawning starts 
-  SCREENTIMER = $041C
+  SCREENTIMER = $041C; Beginning of message TIME:
   RASTER = $D012
   
   ;joystick addresses 
@@ -58,6 +59,7 @@
   SCOREB1 = $208E
   SCOREB2 = $208F
   SCOREB3 = $2090
+  TIMER = $20AD
   
   ;startup address
     * = $0801
@@ -284,6 +286,14 @@
       CPX #3
       BNE @sloop1
     RTS  
+   
+   printTimer
+    LDY #0
+    LDA TIMER
+    ADC #1
+    STA TIMER
+    STA TIMERSCREEN,y
+    RTS
     
   plotDigitS
      CLC
@@ -616,7 +626,7 @@
         STA SCREENTIMER,X       ; render text to screen
         DEX             ; decrement X
         BNE @GETCHAR2     ; loop until X goes negative 
-      ;JSR printTimer
+       JSR printTimer
     RTS
     
   * = $2000
@@ -636,3 +646,4 @@
   !byte $0,$13,$03,$0F,$12,$05,$3A     ; Status bar message SCORE:
   !byte $0,$20,$0C,$05,$16,$05,$0C,$3A ; Status bar message LEVEL:
   !byte $0,$14,$09,$0D,$05,$3A         ; Status bar message TIME:
+  !byte $0; TIMER
