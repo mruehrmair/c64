@@ -6,9 +6,12 @@
   LEVEL = $2094
   BACTERIAINLEVEL = $2097
   BACTERIAINCREASE = 2; Bacteria spawn increase per level
+  TIMELIMIT = $20 ; Time limit in seconds 20 using BCD to calculate timer 
   
   ;kernal and system addresses 
   CHROUT  = $FFD2 ; kernal table for Write byte to default output.
+  SETTIM = $FFDB ; kernal table set timer
+  RDTIM = $FFDE ; kernal table rd timer
   RANDOMNUMBER = $D41B ; SID random number
   
   ;zeropage adresses
@@ -60,6 +63,7 @@
   SCOREB2 = $208F
   SCOREB3 = $2090
   TIMER = $20AD
+  TIMERSECONDS = $20B0
   
   ;startup address
     * = $0801
@@ -81,6 +85,7 @@
   
   prepareGame
     JSR initPlayer
+    JSR resetTimer
     JSR nextLevel
     RTS
   
@@ -106,6 +111,7 @@
       JSR waitForRaster
       DEX
       BNE @waitLoop
+    JSR checkTimer
     JSR checkNextLevel   
     JMP gameLoop
     
@@ -287,12 +293,25 @@
       BNE @sloop1
     RTS  
    
-   printTimer
-    LDY #0
-    LDA TIMER
-    ADC #1
-    STA TIMER
+   printTimer   
+    LDY #2
+    LDA TIMERSECONDS,x
+    PHA
+    AND #$0F
+    JSR plotTimerDigit
+    PLA
+    LSR
+    LSR
+    LSR
+    LSR
+    JSR plotTimerDigit               
+    RTS
+  
+  plotTimerDigit
+    CLC
+    ADC #48 ; add $30 on petscii table
     STA TIMERSCREEN,y
+    DEY
     RTS
     
   plotDigitS
@@ -597,12 +616,52 @@
     LDA #0
     STA BACTERIAINLEVEL
     JSR spawnBacteria
+    JSR resetTimeSeconds
     RTS
    
    checkNextLevel
     LDA BACTERIAINLEVEL
     BEQ nextLevel
     RTS 
+  
+   checkTimer
+    ;check if one second has passed, decrease timer by one
+    ;Read time
+    JSR readTime     
+    LDA TIMER+2; lsb
+    CMP #$3C ;one second 60 jiffys
+    BCS @decrementTimer ; 
+    RTS
+   
+    @decrementTimer
+    SED ;Set to binary coded decimal
+    LDA TIMERSECONDS
+    SBC #1
+    STA TIMERSECONDS
+    CLD
+    JSR resetTimer
+    RTS
+       
+   readTime
+    JSR RDTIM
+    STY TIMER
+    STX TIMER+1
+    STA TIMER+2
+    RTS
+    
+   resetTimer
+    ;reset time from clock to 0
+    LDA #0 ; MOST SIGNIFICANT
+    LDX #0
+    LDY #0; LEAST SIGNIFICANT
+    JSR SETTIM
+    RTS
+   
+   resetTimeSeconds
+    ;reset the timer counting down per second
+    LDA #TIMELIMIT ; 
+    STA TIMERSECONDS
+    RTS
     
    printStatusBar   
     LDX #$06       ; initialize x to message length
@@ -646,4 +705,5 @@
   !byte $0,$13,$03,$0F,$12,$05,$3A     ; Status bar message SCORE:
   !byte $0,$20,$0C,$05,$16,$05,$0C,$3A ; Status bar message LEVEL:
   !byte $0,$14,$09,$0D,$05,$3A         ; Status bar message TIME:
-  !byte $0; TIMER
+  !byte $00,$00,$00; TIMER in jiffys
+  !byte $20 ; Timer in seconds
