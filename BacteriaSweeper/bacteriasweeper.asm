@@ -37,6 +37,7 @@
   SCREENLEVEL = $040D ; Beginning of message LEVEL:
   SCREENSPAWNPOS = $04E0 ; Screen RAM address where spawning starts 
   SCREENTIMER = $041C; Beginning of message TIME:
+  SCREENGAMEOVER =$042A; Beginning of message Game Over
   RASTER = $D012
   
   ;joystick addresses 
@@ -56,6 +57,7 @@
   STATUSBARMESSAGE = $2098
   LEVELMESSAGE = $209F
   TIMERMESSAGE = $20A7
+  GAMEOVERMESSAGE1 = $20B1
   HIGHSCOREB1 = $208B
   HIGHSCOREB2 = $208C
   HIGHSCOREB3 = $208D
@@ -72,10 +74,10 @@
     
    * = $080D
     JSR init
+   title 
     JSR titleScreen
     JSR prepareGame
     JSR gameLoop
-    RTS
   
   init:
     JSR initRandomSID
@@ -111,9 +113,9 @@
       JSR waitForRaster
       DEX
       BNE @waitLoop
-    JSR checkTimer
-    JSR checkNextLevel   
-    JMP gameLoop
+    JSR checkTimer    
+    JSR checkNextLevel
+    JMP checkGameOver   
     
   clearScreen
     LDA #$93
@@ -234,6 +236,7 @@
     STA HIGHSCOREB2
     LDA SCOREB3
     STA HIGHSCOREB3
+    JSR resetScore
     RTS
   
   printHighscore    
@@ -662,6 +665,56 @@
     LDA #TIMELIMIT ; 
     STA TIMERSECONDS
     RTS
+   
+   checkGameOver
+    LDA TIMERSECONDS
+    BEQ gameOver
+    JMP gameLoop
+   
+   gameOver
+    JSR gameOverMessage
+    JSR wait4Seconds
+    JSR resetGame
+    JMP title
+   
+   resetGame
+    ;reset LEVEL
+    LDA #0
+    STA LEVEL
+    STA LEVEL+1
+    STA LEVEL+2
+    ;reset bacteria
+    LDA #03
+    STA BACTERIACOUNTER
+    LDA #0
+    STA BACTERIAINLEVEL
+    RTS
+   
+   resetScore
+    ;reset Score
+    LDA #0
+    STA SCOREB1
+    STA SCOREB2
+    STA SCOREB3
+    RTS
+    
+   gameOverMessage
+     LDX #$1E      ; initialize x to message length
+      @GETCHARGO
+        LDA GAMEOVERMESSAGE1,X     ; grab byte
+        STA SCREENGAMEOVER,X       ; render text to screen
+        DEX             ; decrement X
+        BNE @GETCHARGO     ; loop until X goes negative        
+    RTS
+    
+   wait4Seconds
+    JSR resetTimer
+    @timer
+    JSR readTime    
+    LDA TIMER+2; lsb
+    CMP #$F0 ;one second 60 jiffys, 4 seconds 240
+    BCC @timer ; branch on carry clear
+    RTS
     
    printStatusBar   
     LDX #$06       ; initialize x to message length
@@ -696,8 +749,8 @@
   !byte $20,$53,$53,$45,$52,$50,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D
   !byte $9D,$11,$11,$11,$52,$45,$50,$45,$45,$57,$53,$20,$41,$49,$52,$45,$54,$43,$41,$42,$11
   !byte $11,$11,$11,$11,$11,$11,$1D,$0 ;Title screen text
-  !byte $0,$07,$0  ;Highscore
-  !byte $93,$08,$0  ;Score
+  !byte $00,$00,$00  ;Highscore
+  !byte $00,$00,$00  ;Score
   !byte $F9,$05 ; Player position
   !byte $03; number of bacteria to be spawned
   !byte $0,$0,$0;level
@@ -707,3 +760,4 @@
   !byte $0,$14,$09,$0D,$05,$3A         ; Status bar message TIME:
   !byte $00,$00,$00; TIMER in jiffys
   !byte $20 ; Timer in seconds
+  !byte $0,$14,$09,$0D,$05,$20,$09,$13,$20,$15,$10,$2C,$20,$19,$0F,$15,$20,$17,$05,$12,$05,$20,$14,$0F,$0F,$20,$13,$0C,$0F,$17,$21  ; Game over message TIME IS UP, YOU WERE TOO SLOW!
