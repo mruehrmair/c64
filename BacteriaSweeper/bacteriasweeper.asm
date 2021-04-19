@@ -217,17 +217,20 @@
     CMP HIGHSCOREB3 ;compare score msb with highscore (highscore - score)
     BEQ @cmpScore2
     BCS @copyScore    
+    JSR resetScore
     RTS
    @cmpScore2 
     LDA SCOREB2  ;load score 
     CMP HIGHSCOREB2 ;compare score with highscore (highscore - score)
     BEQ @cmpScore1
     BCS @copyScore    
+    JSR resetScore
     RTS 
    @cmpScore1 
     LDA SCOREB1  ;load score lsb
     CMP HIGHSCOREB1 ;compare score lsb with highscore (highscore - score)
     BCS @copyScore
+    JSR resetScore
     RTS     
    @copyScore
     LDA SCOREB1
