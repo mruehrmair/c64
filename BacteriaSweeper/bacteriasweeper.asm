@@ -631,6 +631,8 @@
     LDA (SCREENSPAWNZEROA),y
     CMP #XCHAR ;compare a with CHAR
     BEQ rndpos;
+    CMP #PLAYERCHAR ;compare a with PLAYERCHAR
+    BEQ rndpos;
     LDA #XCHAR ; load char
     STA (SCREENSPAWNZEROA),y ; Print to screen if not equal        
     RTS
