@@ -3,11 +3,15 @@
   ;game settings
   GAMESPEED = 18; 1 is fastest n is slower
   BACTERIACOUNTER = $2093 ;adress where the number of enemies to be spawned is found
+  BACTERIACOUNTERTEMP = $20F3; temp storage for number of bacteria
   LEVEL = $2094
   BACTERIAINLEVEL = $2097
-  BACTERIAINCREASE = 2; Bacteria spawn increase per level
-  TIMELIMIT = $20 ; Time limit in seconds 20 using BCD to calculate timer 
-  
+  BACTERIAINCREASE = 1; Bacteria spawn increase per level
+  TIMELIMIT = $20 ; Time limit in seconds 20 using BCD to calculate timer
+  MAXIMUMBACTERIA = $1E ;Maximum number of enemies allowed in level (30 decimal)
+  INITIALPLAYERPOS1 = $F9; initial player pos lsb (screen memory)
+  INITIALPLAYERPOS2 = $05; intial player pos msb (screen memory)
+ 
   ;kernal and system addresses 
   CHROUT  = $FFD2 ; kernal table for Write byte to default output.
   SETTIM = $FFDB ; kernal table set timer
@@ -58,6 +62,7 @@
   LEVELMESSAGE = $209F
   TIMERMESSAGE = $20A7
   GAMEOVERMESSAGE1 = $20B1
+  GAMEOVERMESSAGE2 = $20D0
   HIGHSCOREB1 = $208B
   HIGHSCOREB2 = $208C
   HIGHSCOREB3 = $208D
@@ -92,10 +97,12 @@
     RTS
   
   initPlayer
-    LDA PLAYERPOS ; LSB
+    LDA #INITIALPLAYERPOS1 ; LSB
     STA SCREENPLAYERZEROA
-    LDA PLAYERPOS+1 ; MSB
+    STA PLAYERPOS
+    LDA #INITIALPLAYERPOS2 ; MSB
     STA SCREENPLAYERZEROA+1
+    STA PLAYERPOS+1
     RTS
   
   gameLoop    
@@ -113,6 +120,7 @@
       JSR waitForRaster
       DEX
       BNE @waitLoop
+    JSR checkSpawn  
     JSR checkTimer    
     JSR checkNextLevel
     JMP checkGameOver   
@@ -507,6 +515,34 @@
     CMP (SCREENPLAYERZEROA),y
     BEQ incrementScore
     RTS
+   
+   incrementScore
+     DEC BACTERIAINLEVEL ; decrease number of active bacteria
+     SED ;Set to binary coded decimal
+     CLC
+     LDA SCOREB1
+     ADC #10
+     STA SCOREB1
+     BCS @carryDecScore
+     CLD
+     RTS
+  
+    @carryDecScore
+     CLC
+     LDA SCOREB2
+     ADC #1
+     STA SCOREB2
+     BCS @carryDecScore2
+     CLD
+     RTS
+     
+    @carryDecScore2
+     CLC
+     LDA SCOREB3
+     ADC #1
+     STA SCOREB3      
+     CLD
+     RTS   
     
    drawPlayer
     LDY #$0
@@ -535,6 +571,28 @@
     @draw
     RTS
   
+   checkSpawn
+    ;chance of spawn increases with each level 
+    ; load level to y
+    LDY BACTERIACOUNTER 
+    DEY
+    DEY
+    DEY
+    CPY RANDOMNUMBER
+    BCS @spawnSingle
+    RTS
+    @spawnSingle
+    ;temp storage current bacteria counter
+    LDA BACTERIACOUNTER
+    STA BACTERIACOUNTERTEMP
+    LDA #1
+    STA BACTERIACOUNTER
+    JSR spawnBacteria
+    ;restore original bacteria counter
+    LDA BACTERIACOUNTERTEMP
+    STA BACTERIACOUNTER   
+    RTS
+    
    spawnBacteria                        
     LDX BACTERIACOUNTER ; loop counter
     screenpos         
@@ -576,34 +634,6 @@
     LDA #XCHAR ; load char
     STA (SCREENSPAWNZEROA),y ; Print to screen if not equal        
     RTS
-    
-  incrementScore
-     DEC BACTERIAINLEVEL ; decrease number of active bacteria
-     SED ;Set to binary coded decimal
-     CLC
-     LDA SCOREB1
-     ADC #10
-     STA SCOREB1
-     BCS @carryDecScore
-     CLD
-     RTS
-  
-    @carryDecScore
-     CLC
-     LDA SCOREB2
-     ADC #1
-     STA SCOREB2
-     BCS @carryDecScore2
-     CLD
-     RTS
-     
-    @carryDecScore2
-     CLC
-     LDA SCOREB3
-     ADC #1
-     STA SCOREB3      
-     CLD
-     RTS   
      
    nextLevel
     JSR clearScreen
@@ -671,17 +701,27 @@
    
    checkGameOver
     LDA TIMERSECONDS
-    BEQ gameOver
+    BEQ gameOverTime
+    LDA #MAXIMUMBACTERIA
+    CMP BACTERIAINLEVEL
+    BCC gameOverMax
     JMP gameLoop
    
-   gameOver
-    JSR gameOverMessage
+   gameOver 
     JSR wait4Seconds
     JSR resetGame
     JMP title
    
+   gameOverTime
+    JSR gameOverMessage
+    JMP gameOver
+   gameOverMax
+    JSR gameOverMessageMax
+    JMP gameOver
+     
    resetGame
     ;reset LEVEL
+    JSR initPlayer
     LDA #0
     STA LEVEL
     STA LEVEL+1
@@ -709,6 +749,15 @@
         DEX             ; decrement X
         BNE @GETCHARGO     ; loop until X goes negative        
     RTS
+   
+   gameOverMessageMax
+     LDX #$22      ; initialize x to message length
+      @GETCHARGO2
+        LDA GAMEOVERMESSAGE2,X     ; grab byte
+        STA SCREENGAMEOVER,X       ; render text to screen
+        DEX             ; decrement X
+        BNE @GETCHARGO2     ; loop until X goes negative        
+    RTS 
     
    wait4Seconds
     JSR resetTimer
@@ -754,7 +803,7 @@
   !byte $11,$11,$11,$11,$11,$11,$1D,$0 ;Title screen text
   !byte $00,$00,$00  ;Highscore
   !byte $00,$00,$00  ;Score
-  !byte $F9,$05 ; Player position
+  !byte $00,$00 ; Player position
   !byte $03; number of bacteria to be spawned
   !byte $0,$0,$0;level
   !byte $0; current number of bacteria in level
@@ -764,3 +813,5 @@
   !byte $00,$00,$00; TIMER in jiffys
   !byte $20 ; Timer in seconds
   !byte $0,$14,$09,$0D,$05,$20,$09,$13,$20,$15,$10,$2C,$20,$19,$0F,$15,$20,$17,$05,$12,$05,$20,$14,$0F,$0F,$20,$13,$0C,$0F,$17,$21  ; Game over message TIME IS UP, YOU WERE TOO SLOW!
+  !byte $0,$14,$08,$05,$12,$05,$20,$01,$12,$05,$20,$14,$F,$F,$20,$D,$01,$E,$19,$20,$02,$01,$03,$14,$05,$12,$09,$01,$21,$20,$01,$12,$07,$08,$21 ;Game over message THERE ARE TOO MANY BACTERIA! ARGH!
+  !byte $0;temporary storage for number of bacteria to be spawned
