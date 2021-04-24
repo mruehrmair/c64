@@ -8,4 +8,4 @@ Killing bacteria is easy. Just use the joystick in port 2 to control the ship to
 
 Game parameters:
 There is a number of bacteria that wil spawn at the beginning of each level.
-The game is lost if there is a certain number of bacteria items on screen.
+The game is lost if there is a certain number of bacteria items on screen or if the time runs out.
