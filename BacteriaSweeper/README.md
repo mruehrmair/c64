@@ -1,4 +1,4 @@
-Bakterientoeter
+Bacteria Sweeper
 
 The player controls a nano space ship (the ball symbol) that was injected into a human body.
 The goal is to kill all bacteria (the X symbols) that appear on the screen before things get out of hand and there is too much bacteria on the screen.
