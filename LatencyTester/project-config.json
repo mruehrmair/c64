@@ -1,0 +1,14 @@
+{
+    "name": "code",
+    "description": "Project code",
+    "toolkit": "acme",
+    "sources": [
+        "src/latencytester.asm"
+    ],
+    "build": "debug",
+    "definitions": [],
+    "includes": [
+    ],
+    "args": [],
+    "compiler": ""
+}
